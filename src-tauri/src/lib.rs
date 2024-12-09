@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
@@ -20,6 +22,7 @@ struct AppState {
 #[serde(tag = "type", content = "data")]
 enum WebsocketMessage {
     Session(DiscordUser),
+    ConnectedUsers(HashMap<String, DiscordUser>),
     Message(String),
 }
 
@@ -91,6 +94,9 @@ async fn read_messages(
                 match msg {
                     WebsocketMessage::Session(discord_user) => {
                         app.emit("session", discord_user).unwrap();
+                    }
+                    WebsocketMessage::ConnectedUsers(users) => {
+                        app.emit("connected_users", users).unwrap();
                     }
                     WebsocketMessage::Message(_) => todo!(),
                 }

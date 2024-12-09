@@ -4,7 +4,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import App from "./App";
 import Navbar from "./components/Navbar";
-import { SessionContextProvider } from "./context/SessionContext";
+import { StateContextProvider } from "./context/StateContext";
 import "./main.css";
 import LoginPage from "./routes/login";
 
@@ -18,7 +18,7 @@ if (token) {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <SessionContextProvider>
+    <StateContextProvider>
       <main className="w-full h-screen flex bg-zinc-800">
         <BrowserRouter>
           <Navbar>
@@ -29,6 +29,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           </Navbar>
         </BrowserRouter>
       </main>
-    </SessionContextProvider>
+    </StateContextProvider>
   </React.StrictMode>
 );

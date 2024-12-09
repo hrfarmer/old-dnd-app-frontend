@@ -1,13 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { SessionContext } from "./context/SessionContext";
+import { StateContext } from "./context/StateContext";
+import { generateAvatarUrl } from "./utils";
 
 export default function App() {
-  const [token, setToken] = useState<string>("");
   const [inputValue, setInputValue] = useState<string>("");
   const navigate = useNavigate();
-  const sessionContext = useContext(SessionContext);
+  const state = useContext(StateContext);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -15,8 +15,6 @@ export default function App() {
       navigate("/login");
       return; // for sanity
     }
-
-    setToken(token);
   }, []);
 
   return (
@@ -40,6 +38,17 @@ export default function App() {
           Send Message
         </button>
       </form>
+      <div>
+        {state?.connectedUsers.map((user) => (
+          <>
+            <img
+              src={generateAvatarUrl(user[1])}
+              className="rounded-full h-11 select-none"
+            ></img>
+            <p>{user[1].global_name ?? user[1].username}</p>
+          </>
+        ))}
+      </div>
     </>
   );
 }
