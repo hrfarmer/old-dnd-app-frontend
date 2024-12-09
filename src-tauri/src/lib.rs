@@ -1,12 +1,11 @@
 use futures_util::{
     stream::{SplitSink, SplitStream},
-    FutureExt, SinkExt, StreamExt,
+    SinkExt, StreamExt,
 };
+use http::Request;
 use reqwest::StatusCode;
-use serde::Serialize;
-use std::{borrow::BorrowMut, sync::Arc};
-use tauri::ipc::Channel;
-use tauri::Manager;
+use serde::{Deserialize, Serialize};
+use tauri::{Emitter, Manager};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -17,12 +16,32 @@ struct AppState {
     write: Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
 }
 
-#[derive(Clone, Serialize)]
-enum WebsocketEvent<'a> {
-    Connected { message: &'a str },
-    SendMessage { message: &'a str, author: &'a str },
+#[derive(Deserialize, Serialize, Clone)]
+#[serde(tag = "type", content = "data")]
+enum WebsocketMessage {
+    Session(DiscordUser),
+    Message(String),
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+struct DiscordUser {
+    id: String,
+    username: String,
+    discriminator: String,
+    global_name: Option<String>,
+    avatar: Option<String>,
+    bot: Option<bool>,
+    system: Option<bool>,
+    mfa_enabled: Option<bool>,
+    banner: Option<String>,
+    accent_color: Option<u64>,
+    locale: Option<String>,
+    verified: Option<bool>,
+    email: Option<String>,
+    flags: Option<u64>,
+    premium_type: Option<u64>,
+    public_flags: Option<u64>,
+}
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -60,30 +79,65 @@ async fn read_messages(
 ) {
     while let Some(message) = read.next().await {
         match message {
-            Ok(msg) => println!("Received a message: {}", msg),
+            Ok(msg) => {
+                let msg: WebsocketMessage = match serde_json::from_str(&msg.to_string()) {
+                    Ok(message) => message,
+                    Err(e) => {
+                        eprintln!("Failed to deserialize WebSocket message: {}", e);
+                        continue;
+                    }
+                };
+
+                match msg {
+                    WebsocketMessage::Session(discord_user) => {
+                        app.emit("session", discord_user).unwrap();
+                    }
+                    WebsocketMessage::Message(_) => todo!(),
+                }
+            }
             Err(e) => eprintln!("Error receiving message: {}", e),
         }
     }
 }
 
 #[tauri::command]
-async fn connect(app: tauri::AppHandle) {
-    connect_websocket(app).await
+async fn connect(app: tauri::AppHandle, token: &str) -> Result<bool, bool> {
+    match connect_websocket(app, token).await {
+        Ok(_) => Ok(true),
+        Err(_) => Err(false),
+    }
 }
+async fn connect_websocket(app: tauri::AppHandle, token: &str) -> Result<bool, bool> {
+    // Manually make the request so the auth header can be passed in
+    // (requires all of these extra headers for some reason)
+    let request = Request::builder()
+        .uri("ws://localhost:8080/ws")
+        .header("sec-websocket-key", "foo")
+        .header("host", "localhost:8080")
+        .header("connection", "upgrade")
+        .header("upgrade", "websocket")
+        .header("sec-websocket-version", 13)
+        .header("Authorization", format!("Bearer {}", token))
+        .body(())
+        .unwrap();
 
-async fn connect_websocket(app: tauri::AppHandle) {
-    println!("Something happened");
-    let (stream, _) = tokio_tungstenite::connect_async("ws://localhost:8080/ws")
-        .await
-        .expect("Failed to connect");
-    let (mut write, mut read) = stream.split();
+    match tokio_tungstenite::connect_async(request).await {
+        Ok((stream, _)) => {
+            let (write, read) = stream.split();
+            let state = app.state::<Mutex<AppState>>();
+            let mut state = state.lock().await;
+            state.write = Some(write);
 
-    let state = app.state::<Mutex<AppState>>();
-    let mut state = state.lock().await;
-    state.write = Some(write);
+            let app_clone = app.clone();
+            tokio::spawn(read_messages(read, app_clone));
 
-    let app_clone = app.clone();
-    tokio::spawn(read_messages(read, app_clone));
+            Ok(true)
+        }
+        Err(a) => {
+            println!("{a:?}");
+            Err(false)
+        }
+    }
 }
 
 #[tauri::command]

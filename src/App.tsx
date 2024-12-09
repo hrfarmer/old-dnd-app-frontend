@@ -1,16 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { SessionContext } from "./context/SessionContext";
 
 export default function App() {
   const [token, setToken] = useState<string>("");
   const [inputValue, setInputValue] = useState<string>("");
   const navigate = useNavigate();
+  const sessionContext = useContext(SessionContext);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    console.log(`The token is ${token}`);
-
     if (!token) {
       navigate("/login");
       return; // for sanity
@@ -21,12 +21,6 @@ export default function App() {
 
   return (
     <>
-      <button
-        className="bg-blue-500 h-10 flex items-center px-4 py-3 rounded-md hover:cursor-pointer"
-        onClick={() => invoke("connect")}
-      >
-        Connect
-      </button>
       <form
         className="flex gap-3 items-center"
         onSubmit={(evt) => {
