@@ -83,6 +83,12 @@ async fn read_messages(
     while let Some(message) = read.next().await {
         match message {
             Ok(msg) => {
+                let time = chrono::Utc::now().format("%H:%M:%S").to_string();
+                if Message::is_ping(&msg) {
+                    continue;
+                }
+
+                println!("{time:} msg: {msg:?}");
                 let msg: WebsocketMessage = match serde_json::from_str(&msg.to_string()) {
                     Ok(message) => message,
                     Err(e) => {
