@@ -5,6 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import App from "./App";
 import Navbar from "./components/Navbar";
 import { StateContextProvider } from "./context/StateContext";
+import { WebsocketContextProvider } from "./context/WebsocketContext";
 import "./main.css";
 import LoginPage from "./routes/login";
 
@@ -19,16 +20,18 @@ if (token) {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <StateContextProvider>
-      <main className="w-full h-screen flex bg-zinc-800">
-        <BrowserRouter>
-          <Navbar>
-            <Routes>
-              <Route path="/" element={<App />} />
-              <Route path="/login" element={<LoginPage />} />
-            </Routes>
-          </Navbar>
-        </BrowserRouter>
-      </main>
+      <WebsocketContextProvider>
+        <main className="w-full h-screen flex bg-zinc-800">
+          <BrowserRouter>
+            <Navbar>
+              <Routes>
+                <Route path="/" element={<App />} />
+                <Route path="/login" element={<LoginPage />} />
+              </Routes>
+            </Navbar>
+          </BrowserRouter>
+        </main>
+      </WebsocketContextProvider>
     </StateContextProvider>
   </React.StrictMode>
 );

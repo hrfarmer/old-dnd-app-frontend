@@ -24,6 +24,7 @@ enum WebsocketMessage {
     Session(DiscordUser),
     ConnectedUsers(HashMap<String, DiscordUser>),
     Message(String),
+    Disconnect(String),
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -87,6 +88,10 @@ async fn read_messages(
                 if Message::is_ping(&msg) {
                     continue;
                 }
+                if Message::is_close(&msg) {
+                    println!("{msg}");
+                    break;
+                }
 
                 println!("{time:} msg: {msg:?}");
                 let msg: WebsocketMessage = match serde_json::from_str(&msg.to_string()) {
@@ -105,6 +110,7 @@ async fn read_messages(
                         app.emit("connected_users", users).unwrap();
                     }
                     WebsocketMessage::Message(_) => todo!(),
+                    WebsocketMessage::Disconnect(_) => todo!(),
                 }
             }
             Err(e) => eprintln!("Error receiving message: {}", e),
@@ -119,6 +125,7 @@ async fn connect(app: tauri::AppHandle, token: &str) -> Result<bool, bool> {
         Err(_) => Err(false),
     }
 }
+
 async fn connect_websocket(app: tauri::AppHandle, token: &str) -> Result<bool, bool> {
     // Manually make the request so the auth header can be passed in
     // (requires all of these extra headers for some reason)
@@ -164,6 +171,26 @@ async fn send_message(app: tauri::AppHandle, message: &str) -> Result<bool, bool
     }
 }
 
+#[tauri::command]
+async fn disconnect(app: tauri::AppHandle) -> Result<bool, bool> {
+    let state = app.state::<Mutex<AppState>>();
+    let mut state = state.lock().await;
+    let unwrapped_write = state.write.as_mut().unwrap();
+
+    match unwrapped_write
+        .send(Message::text(
+            serde_json::to_string(&WebsocketMessage::Disconnect(
+                "User disconnection".to_string(),
+            ))
+            .unwrap(),
+        ))
+        .await
+    {
+        Ok(_) => Ok(true),
+        Err(_) => Err(false),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -178,6 +205,7 @@ pub fn run() {
             get_login_url,
             check_token_valid,
             connect,
+            disconnect,
             send_message
         ])
         .run(tauri::generate_context!())

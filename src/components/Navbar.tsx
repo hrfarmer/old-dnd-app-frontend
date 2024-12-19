@@ -5,10 +5,12 @@ import { IoMdHome } from "react-icons/io";
 import { RxNotionLogo } from "react-icons/rx";
 import { NavLink } from "react-router";
 import { StateContext } from "../context/StateContext";
+import { WebsocketContext } from "../context/WebsocketContext";
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("token");
   const state = useContext(StateContext);
+  const websocketState = useContext(WebsocketContext);
 
   return (
     <>
@@ -51,15 +53,35 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                   <p>Notion</p>
                 </NavLink>
               </div>
-              {state?.session ? (
-                <img
-                  src={state.session.avatar_url}
-                  className="rounded-full h-11 select-none"
-                ></img>
+              {websocketState?.connected ? (
+                state?.session ? (
+                  <div className="flex items-center gap-4">
+                    <button
+                      className="bg-red-500 text-white h-10 flex items-center px-4 py-3 rounded-md hover:cursor-pointer"
+                      onClick={() =>
+                        invoke("disconnect").then(() =>
+                          websocketState?.setConnected(false)
+                        )
+                      }
+                    >
+                      Disconnect
+                    </button>
+                    <img
+                      src={state.session.avatar_url}
+                      className="rounded-full h-11 select-none"
+                    ></img>
+                  </div>
+                ) : (
+                  <p>Loading...</p>
+                )
               ) : (
                 <button
                   className="bg-blue-500 text-white h-10 flex items-center px-4 py-3 rounded-md hover:cursor-pointer"
-                  onClick={() => invoke("connect", { token: token })}
+                  onClick={() =>
+                    invoke("connect", { token: token }).then(() =>
+                      websocketState?.setConnected(true)
+                    )
+                  }
                 >
                   Connect
                 </button>
