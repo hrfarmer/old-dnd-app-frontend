@@ -13,6 +13,12 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
+#[derive(Deserialize, Serialize, Clone)]
+struct ChatMessage {
+    author: String,
+    content: String,
+}
+
 #[derive(Default)]
 struct AppState {
     write: Option<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>>,
@@ -23,7 +29,7 @@ struct AppState {
 enum WebsocketMessage {
     Session(DiscordUser),
     ConnectedUsers(HashMap<String, DiscordUser>),
-    Message(String),
+    Message(ChatMessage),
     Disconnect(String),
 }
 
@@ -109,7 +115,9 @@ async fn read_messages(
                     WebsocketMessage::ConnectedUsers(users) => {
                         app.emit("connected_users", users).unwrap();
                     }
-                    WebsocketMessage::Message(_) => todo!(),
+                    WebsocketMessage::Message(message) => {
+                        app.emit("message", message).unwrap();
+                    }
                     WebsocketMessage::Disconnect(_) => todo!(),
                 }
             }
@@ -165,7 +173,10 @@ async fn send_message(app: tauri::AppHandle, message: &str) -> Result<bool, bool
     let mut state = state.lock().await;
     let unwrapped_write = state.write.as_mut().unwrap();
 
-    match unwrapped_write.send(Message::text(message)).await {
+    match unwrapped_write
+        .send(Message::text(message.to_string()))
+        .await
+    {
         Ok(_) => Ok(true),
         Err(_) => Err(false),
     }
@@ -186,7 +197,10 @@ async fn disconnect(app: tauri::AppHandle) -> Result<bool, bool> {
         ))
         .await
     {
-        Ok(_) => Ok(true),
+        Ok(_) => {
+            state.write = None;
+            Ok(true)
+        }
         Err(_) => Err(false),
     }
 }

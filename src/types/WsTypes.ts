@@ -17,3 +17,8 @@ export type SessionType = {
   premium_type?: number;
   public_flags?: number;
 };
+
+export type ChatMessageType = {
+  author: string;
+  content: string;
+};

@@ -1,11 +1,13 @@
 import { listen } from "@tauri-apps/api/event";
 import React, { createContext, useState } from "react";
-import { SessionType } from "../types/WsTypes";
+import { ChatMessageType, SessionType } from "../types/WsTypes";
 import { generateAvatarUrl } from "../utils";
 
 export type StateType = {
   session: SessionType | null;
   connectedUsers: [string, SessionType][];
+  messages: ChatMessageType[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessageType[]>>;
 };
 
 export function StateContextProvider({
@@ -17,6 +19,7 @@ export function StateContextProvider({
   const [connectedUsers, setConnectedUsers] = useState<[string, SessionType][]>(
     []
   );
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
 
   listen<SessionType>("session", (session) => {
     let image_url = "";
@@ -27,6 +30,10 @@ export function StateContextProvider({
       ...session.payload,
       avatar_url: image_url,
     });
+
+    listen<ChatMessageType>("message", (msg) => {
+      setMessages((msgs) => [msg.payload, ...msgs]);
+    });
   });
 
   listen<{ [key: string]: SessionType }>("connected_users", (users) => {
@@ -34,7 +41,9 @@ export function StateContextProvider({
   });
 
   return (
-    <StateContext.Provider value={{ session, connectedUsers }}>
+    <StateContext.Provider
+      value={{ session, connectedUsers, messages, setMessages }}
+    >
       {children}
     </StateContext.Provider>
   );
