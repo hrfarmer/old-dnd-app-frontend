@@ -1,22 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useContext, useState } from "react";
 import ChatMessage from "./components/ChatMessage";
 import { StateContext } from "./context/StateContext";
 
 export default function App() {
   const [inputValue, setInputValue] = useState<string>("");
-
-  const navigate = useNavigate();
   const state = useContext(StateContext)!;
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return; // for sanity
-    }
-  }, []);
 
   return (
     <div className="flex flex-col-reverse h-full">
@@ -28,7 +17,7 @@ export default function App() {
 
           invoke("send_message", { message: inputValue }).then(() =>
             state.setMessages((msgs) => [
-              { author: state.session?.id!, content: inputValue },
+              { author: state.session?.session.id!, content: inputValue },
               ...msgs,
             ])
           );

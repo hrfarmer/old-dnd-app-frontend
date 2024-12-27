@@ -13,6 +13,13 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
+#[derive(Serialize, Deserialize)]
+pub struct UserSession {
+    access_token: String,
+    refresh_token: String,
+    session: DiscordUser,
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 struct ChatMessage {
     author: String,
@@ -118,6 +125,54 @@ async fn read_messages(
 }
 
 #[tauri::command]
+async fn get_session(app: tauri::AppHandle, token: &str) -> Result<String, &str> {
+    let client = reqwest::Client::new();
+    let resp = client
+        .get("http://localhost:8080/session")
+        .header(reqwest::header::AUTHORIZATION, token)
+        .send()
+        .await;
+    match resp {
+        Ok(r) => match r.status() {
+            StatusCode::OK => Ok(r.text().await.unwrap()),
+            _ => Err("Status code not okay"),
+        },
+        Err(_) => Err("Request failed"),
+    }
+}
+
+#[tauri::command]
+async fn ws_login(app: tauri::AppHandle) -> Result<bool, String> {
+    match tokio_tungstenite::connect_async("ws://localhost:8080/ws-login").await {
+        Ok((stream, _)) => {
+            let (_, mut read) = stream.split();
+            let mut idx = 0;
+
+            while let Some(message) = read.next().await {
+                match message {
+                    Ok(msg) => {
+                        if idx == 0 {
+                            let _ = app.emit("open_login_url", msg.to_string());
+                            idx += 1;
+                        } else if idx == 1 {
+                            let _ = app.emit("session", msg.to_string());
+                            break;
+                        }
+                    }
+                    Err(e) => eprintln!("Error receiving message: {}", e),
+                }
+            }
+
+            Ok(true)
+        }
+        Err(a) => {
+            println!("{a:?}");
+            Err(String::from("Failed to connect to login websocket"))
+        }
+    }
+}
+
+#[tauri::command]
 async fn connect(app: tauri::AppHandle, token: &str) -> Result<bool, bool> {
     match connect_websocket(app, token).await {
         Ok(_) => Ok(true),
@@ -211,7 +266,9 @@ pub fn run() {
             check_token_valid,
             connect,
             disconnect,
-            send_message
+            send_message,
+            ws_login,
+            get_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
