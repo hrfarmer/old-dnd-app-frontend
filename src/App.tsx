@@ -8,10 +8,7 @@ export default function App() {
   const [inputValue, setInputValue] = useState<string>("");
 
   const navigate = useNavigate();
-  const state = useContext(StateContext);
-  if (!state) {
-    return;
-  }
+  const state = useContext(StateContext)!;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -31,7 +28,7 @@ export default function App() {
 
           invoke("send_message", { message: inputValue }).then(() =>
             state.setMessages((msgs) => [
-              { author: state.session?.id as string, content: inputValue },
+              { author: state.session?.id!, content: inputValue },
               ...msgs,
             ])
           );

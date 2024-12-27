@@ -40,18 +40,9 @@ struct DiscordUser {
     discriminator: String,
     global_name: Option<String>,
     avatar: Option<String>,
-    bot: Option<bool>,
-    system: Option<bool>,
-    mfa_enabled: Option<bool>,
-    banner: Option<String>,
-    accent_color: Option<u64>,
-    locale: Option<String>,
-    verified: Option<bool>,
-    email: Option<String>,
-    flags: Option<u64>,
-    premium_type: Option<u64>,
-    public_flags: Option<u64>,
+    accent_color: Option<i32>,
 }
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
