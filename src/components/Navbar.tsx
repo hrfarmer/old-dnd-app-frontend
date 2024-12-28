@@ -1,14 +1,13 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useContext } from "react";
 import { FaDiceD20 } from "react-icons/fa";
 import { IoMdHome } from "react-icons/io";
 import { RxNotionLogo } from "react-icons/rx";
 import { NavLink } from "react-router";
 import { StateContext } from "../context/StateContext";
-import { WebsocketContext } from "../context/WebsocketContext";
 
 export default function Navbar({ children }: { children: React.ReactNode }) {
   const state = useContext(StateContext)!;
-  const websocketState = useContext(WebsocketContext);
 
   return (
     <>
@@ -53,6 +52,15 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
               </div>
               {state?.session ? (
                 <div className="flex items-center gap-4">
+                  <button
+                    className="bg-red-500 px-4 py-1.5 rounded-md text-white hover:cursor-pointer"
+                    onClick={() => {
+                      localStorage.removeItem("token");
+                      invoke("exit_app");
+                    }}
+                  >
+                    Log Out
+                  </button>
                   <img
                     src={state.session.session.avatar_url}
                     className="rounded-full h-11 select-none"

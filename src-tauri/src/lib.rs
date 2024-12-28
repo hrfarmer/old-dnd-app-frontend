@@ -51,17 +51,8 @@ struct DiscordUser {
 }
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-fn get_login_url() -> Result<String, String> {
-    let resp = reqwest::blocking::get("http://localhost:8080/login-url");
-    match resp {
-        Ok(resp) => Ok(resp.text().unwrap()),
-        Err(_) => Err("Failed to get url".to_string()),
-    }
+async fn exit_app(app: tauri::AppHandle) {
+    app.exit(1);
 }
 
 #[tauri::command]
@@ -125,7 +116,7 @@ async fn read_messages(
 }
 
 #[tauri::command]
-async fn get_session(app: tauri::AppHandle, token: &str) -> Result<String, &str> {
+async fn get_session(token: &str) -> Result<String, &str> {
     let client = reqwest::Client::new();
     let resp = client
         .get("http://localhost:8080/session")
@@ -261,8 +252,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            get_login_url,
+            exit_app,
             check_token_valid,
             connect,
             disconnect,
