@@ -85,8 +85,9 @@ export function StateContextProvider({
         console.log("t: ", t);
         console.log(a);
         if (a.active === true) {
-          console.log(`THE SESSION: ${sessionCookie[a.access_token]}`);
-          setSession(sessionCookie[a.access_token]);
+          console.log(`The session cookie: ${JSON.stringify(s)}`);
+          console.log(`THE SESSION: ${s[a.access_token]}`);
+          setSession(s[a.access_token]);
           break;
         }
       }
