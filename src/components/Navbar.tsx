@@ -62,7 +62,7 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                     Log Out
                   </button>
                   <img
-                    src={state.session.session.avatar_url}
+                    src={state.session.avatar_url}
                     className="rounded-full h-11 select-none"
                   ></img>
                 </div>

@@ -1,48 +1,102 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { load, Store } from "@tauri-apps/plugin-store";
 import { open } from "@tauri-apps/plugin-shell";
 import React, { createContext, useEffect, useState } from "react";
-import { ChatMessageType, SessionType } from "../types/WsTypes";
+import { SessionType } from "../types/WsTypes";
 import { generateAvatarUrl } from "../utils";
 
-type Session = {
+export type StateType = {
+  session: SessionType | null;
+  sessionCookie: SessionCookie;
+  removeSession: (access_token: string) => void;
+};
+
+type SessionResponse = {
   access_token: string;
   refresh_token: string;
   session: SessionType;
 };
 
-export type StateType = {
-  session: Session | null;
-  connectedUsers: [string, SessionType][];
-  messages: ChatMessageType[];
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessageType[]>>;
-};
+export type TokenCookie = {
+  access_token: string;
+  refresh_token: string;
+  active: boolean;
+}[];
+
+export type SessionCookie = { [key: string]: SessionType };
 
 export function StateContextProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [connectedUsers, setConnectedUsers] = useState<[string, SessionType][]>(
-    []
-  );
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [session, setSession] = useState<SessionType | null>(null);
+  const [store, setStore] = useState<Store | null>(null);
+  const [tokenCookie, setTokenCookie] = useState<TokenCookie>([]);
+  const [sessionCookie, setSessionCookie] = useState<SessionCookie>({});
+
+  console.log(tokenCookie);
+  console.log(sessionCookie);
+  console.log(session);
+
+  function setDefaultSession() {
+    if (tokenCookie.length === 0) return;
+
+    for (const t of tokenCookie) {
+      if (t.active === true) {
+        setSession(sessionCookie[t.access_token]);
+        return;
+      }
+    }
+  }
+
+  async function removeSession(access_token: string) {
+    for (const t of tokenCookie) {
+      if (t.access_token === access_token) {
+        const newTokenCookie = tokenCookie.splice(tokenCookie.indexOf(t), 1);
+        const newSessionCookie = sessionCookie;
+        delete newSessionCookie[t.access_token];
+
+        setTokenCookie(newTokenCookie);
+        setSessionCookie(newSessionCookie);
+        await store!.set("token", newTokenCookie);
+        await store!.set("session", newSessionCookie);
+      }
+    }
+  }
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      invoke<string>("get_session", { token: token })
-        .then((session) => {
-          const s = JSON.parse(session) as Session;
-          if (s.session.avatar) {
-            s.session.avatar_url = generateAvatarUrl(s.session);
-          }
+    const init = async () => {
+      const _store = await load("store.json");
+      let t = await _store.get<TokenCookie | undefined>("token");
+      let s = await _store.get<SessionCookie | undefined>("session");
 
-          setSession(s);
-        })
-        .catch((err) => console.log(err));
-    }
+      if (!t) {
+        await _store.set("token", []);
+        t = [];
+      }
+
+      if (!s) {
+        await _store.set("session", {});
+        s = {};
+      }
+
+      for (const a of t) {
+        console.log("t: ", t);
+        console.log(a);
+        if (a.active === true) {
+          console.log(`THE SESSION: ${sessionCookie[a.access_token]}`);
+          setSession(sessionCookie[a.access_token]);
+          break;
+        }
+      }
+
+      setTokenCookie(t);
+      setSessionCookie(s);
+      setStore(_store);
+    };
+
+    init();
   }, []);
 
   // This is really just here for sake of the listen function not triggering twice
@@ -51,29 +105,50 @@ export function StateContextProvider({
     open(url.payload);
   });
 
-  listen<string>("session", (s) => {
-    const payload = JSON.parse(s.payload) as Session;
-    localStorage.setItem("token", payload.access_token);
+  listen<string>("session", async (s) => {
+    if (session) {
+      tokenCookie.find((t) => t.active === true)!.active = false;
+    }
+
+    const payload = JSON.parse(s.payload) as SessionResponse;
+
+    let sessionFound = false;
+    for (const key in sessionCookie) {
+      if (sessionCookie[key].id === payload.session.id) {
+        sessionFound = true;
+        const token = tokenCookie.find((t) => t.access_token === key)!;
+
+        token.access_token = payload.access_token;
+        token.refresh_token = payload.refresh_token;
+        token.active = true;
+      }
+    }
+
+    if (!sessionFound) {
+      tokenCookie.push({
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token,
+        active: true,
+      });
+    }
+
+    setTokenCookie(tokenCookie);
+    // fix this being null for some reason
+    await store!.set("token", tokenCookie);
 
     if (payload.session.avatar) {
       payload.session.avatar_url = generateAvatarUrl(payload.session);
     }
 
-    setSession(payload);
-  });
+    sessionCookie[payload.access_token] = payload.session;
+    setSessionCookie(sessionCookie);
+    await store!.set("session", sessionCookie);
 
-  listen<ChatMessageType>("message", (msg) => {
-    setMessages((msgs) => [msg.payload, ...msgs]);
-  });
-
-  listen<{ [key: string]: SessionType }>("connected_users", (users) => {
-    setConnectedUsers(Object.entries(users.payload));
+    setSession(payload.session);
   });
 
   return (
-    <StateContext.Provider
-      value={{ session, connectedUsers, messages, setMessages }}
-    >
+    <StateContext.Provider value={{ session, sessionCookie, removeSession }}>
       {children}
     </StateContext.Provider>
   );
