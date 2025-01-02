@@ -151,7 +151,9 @@ async fn ws_login(app: tauri::AppHandle) -> Result<bool, String> {
                             break;
                         }
                     }
-                    Err(e) => eprintln!("Error receiving message: {}", e),
+                    Err(e) => {
+                        return Err(String::from(format!("Failed to parse ws message: {}", e)))
+                    }
                 }
             }
 

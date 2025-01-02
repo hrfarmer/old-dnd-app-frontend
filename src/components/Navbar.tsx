@@ -53,10 +53,19 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
               {state?.session ? (
                 <div className="flex items-center gap-4">
                   <button
+                    className="bg-blue-500 px-4 py-1.5 rounded-md text-white hover:cursor-pointer"
+                    onClick={(evt) => {
+                      evt.preventDefault();
+                      state.setSession(null);
+                    }}
+                  >
+                    Switch Users
+                  </button>
+                  <button
                     className="bg-red-500 px-4 py-1.5 rounded-md text-white hover:cursor-pointer"
                     onClick={async () => {
                       await state.removeSession(state.access_token);
-                      invoke("exit_app");
+                      state.setSession(null);
                     }}
                   >
                     Log Out
