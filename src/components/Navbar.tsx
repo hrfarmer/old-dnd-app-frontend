@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useContext } from "react";
 import { FaDiceD20 } from "react-icons/fa";
 import { IoMdHome } from "react-icons/io";
@@ -54,9 +53,9 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                 <div className="flex items-center gap-4">
                   <button
                     className="bg-blue-500 px-4 py-1.5 rounded-md text-white hover:cursor-pointer"
-                    onClick={(evt) => {
+                    onClick={async (evt) => {
                       evt.preventDefault();
-                      state.setSession(null);
+                      await state.switchSessions();
                     }}
                   >
                     Switch Users
@@ -65,7 +64,6 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                     className="bg-red-500 px-4 py-1.5 rounded-md text-white hover:cursor-pointer"
                     onClick={async () => {
                       await state.removeSession(state.access_token);
-                      state.setSession(null);
                     }}
                   >
                     Log Out

@@ -5,6 +5,8 @@ import { listen } from "@tauri-apps/api/event";
 
 export default function LoginPage({ children }: { children: React.ReactNode }) {
   const state = useContext(StateContext)!;
+  console.log(state.sessionCookie);
+  console.log(state.tokenCookie);
   const [wsActive, setWsActive] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -60,11 +62,11 @@ export default function LoginPage({ children }: { children: React.ReactNode }) {
         {state.tokenCookie.length > 0 && (
           <button
             className={`px-4 py-2 rounded-md text-white transition-all ${selectedUser ? "bg-blue-500 hover:cursor-pointer" : "bg-gray-700 text-gray"}`}
-            onClick={(evt) => {
+            onClick={async (evt) => {
               evt.preventDefault();
 
               if (selectedUser) {
-                state.setSession(state.sessionCookie[selectedUser]);
+                await state.loginToSession(selectedUser);
               }
             }}
           >

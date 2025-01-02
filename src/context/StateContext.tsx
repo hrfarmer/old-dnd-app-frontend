@@ -1,23 +1,18 @@
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-shell";
 import { load } from "@tauri-apps/plugin-store";
-import React, {
-  createContext,
-  Dispatch,
-  SetStateAction,
-  useEffect,
-  useState,
-} from "react";
+import React, { createContext, useEffect, useState } from "react";
 import { SessionType } from "../types/WsTypes";
 import { generateAvatarUrl } from "../utils";
 
 export type StateType = {
   session: SessionType | null;
-  setSession: Dispatch<SetStateAction<SessionType | null>>;
   sessionCookie: SessionCookie;
   tokenCookie: TokenCookie;
   access_token: string;
   removeSession: (access_token: string) => Promise<void>;
+  loginToSession: (access_token: string) => Promise<void>;
+  switchSessions: () => Promise<void>;
 };
 
 type SessionResponse = {
@@ -44,23 +39,75 @@ export function StateContextProvider({
   const [sessionCookie, setSessionCookie] = useState<SessionCookie>({});
   const [access_token, setAccessToken] = useState<string>("");
 
+  async function loginToSession(access_token: string) {
+    const store = await load("store.json");
+    const tokenCookie = (await store.get<TokenCookie>("token")) as TokenCookie;
+    const sessionCookie = (await store.get<SessionCookie>(
+      "session",
+    )) as SessionCookie;
+
+    let token;
+
+    for (const t of tokenCookie) {
+      if (t.access_token === access_token) {
+        t.active = true;
+        token = t;
+      } else {
+        t.active = false;
+      }
+    }
+
+    if (!token) {
+      return;
+    }
+
+    await store.set("token", tokenCookie);
+    await store.save();
+
+    setTokenCookie(tokenCookie);
+    setAccessToken(token.access_token);
+    setSession(sessionCookie[token.access_token]);
+  }
+
+  async function switchSessions() {
+    const store = await load("store.json");
+    const tokenCookie = (await store.get<TokenCookie>("token")) as TokenCookie;
+
+    for (const t of tokenCookie) {
+      t.active = false;
+    }
+
+    await store.set("token", tokenCookie);
+    await store.save();
+
+    setSession(null);
+    setAccessToken("");
+  }
+
   async function removeSession(access_token: string) {
     const store = await load("store.json");
     const tokenCookie = (await store.get<TokenCookie>("token")) as TokenCookie;
     const sessionCookie = (await store.get<SessionCookie>(
       "session",
     )) as SessionCookie;
+
     for (const t of tokenCookie) {
+      console.log(`t token: ${t.access_token} passed in: ${access_token}`);
       if (t.access_token === access_token) {
-        const newTokenCookie = tokenCookie.splice(tokenCookie.indexOf(t), 1);
+        const newTokenCookie = tokenCookie.filter(
+          (a) => a.access_token !== access_token,
+        );
         const newSessionCookie = sessionCookie;
-        delete newSessionCookie[t.access_token];
+        delete newSessionCookie[access_token];
+
+        await store.set("token", newTokenCookie);
+        await store.set("session", newSessionCookie);
+        await store.save();
 
         setTokenCookie(newTokenCookie);
         setSessionCookie(newSessionCookie);
+        setSession(null);
         setAccessToken("");
-        await store.set("token", newTokenCookie);
-        await store.set("session", newSessionCookie);
       }
     }
   }
@@ -95,7 +142,6 @@ export function StateContextProvider({
       }
 
       if (!sessionFound) {
-        console.log("session not found");
         tokenCookie.push({
           access_token: payload.access_token,
           refresh_token: payload.refresh_token,
@@ -113,11 +159,9 @@ export function StateContextProvider({
 
       setSession(payload.session);
 
-      console.log(`token cookie: ${JSON.stringify(tokenCookie)}`);
       setTokenCookie(tokenCookie);
       await store.set("token", tokenCookie);
 
-      console.log(`session cookie: ${JSON.stringify(sessionCookie)}`);
       setSessionCookie(sessionCookie);
       await store.set("session", sessionCookie);
 
@@ -167,11 +211,12 @@ export function StateContextProvider({
     <StateContext.Provider
       value={{
         session,
-        setSession,
         sessionCookie,
         tokenCookie,
         access_token,
         removeSession,
+        loginToSession,
+        switchSessions,
       }}
     >
       {children}
