@@ -7,7 +7,8 @@ use futures_util::{
 use http::Request;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, Wry};
+use tauri_plugin_store::StoreExt;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -244,10 +245,16 @@ async fn disconnect(app: tauri::AppHandle) -> Result<bool, bool> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let args: Vec<String> = std::env::args().collect();
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_websocket::init())
-        .setup(|app| {
+        .setup(move |app| {
+            dbg!(&args);
+            if args.len() > 1 && args[1] == "reset" {
+                let store = app.store("store.json")?;
+                store.clear();
+            }
             app.manage(Mutex::new(AppState::default()));
             Ok(())
         })
