@@ -8,7 +8,8 @@ import { generateAvatarUrl } from "../utils";
 export type StateType = {
   session: SessionType | null;
   sessionCookie: SessionCookie;
-  removeSession: (access_token: string) => void;
+  access_token: string;
+  removeSession: (access_token: string) => Promise<void>;
 };
 
 type SessionResponse = {
@@ -33,10 +34,7 @@ export function StateContextProvider({
   const [session, setSession] = useState<SessionType | null>(null);
   const [tokenCookie, setTokenCookie] = useState<TokenCookie>([]);
   const [sessionCookie, setSessionCookie] = useState<SessionCookie>({});
-
-  console.log(tokenCookie);
-  console.log(sessionCookie);
-  console.log(session);
+  const [access_token, setAccessToken] = useState<string>("");
 
   async function removeSession(access_token: string) {
     const store = await load("store.json");
@@ -49,6 +47,7 @@ export function StateContextProvider({
 
         setTokenCookie(newTokenCookie);
         setSessionCookie(newSessionCookie);
+        setAccessToken("");
         await store.set("token", newTokenCookie);
         await store.set("session", newSessionCookie);
       }
@@ -82,7 +81,6 @@ export function StateContextProvider({
       }
 
       if (!sessionFound) {
-        console.log("session not found ... ?");
         tokenCookie.push({
           access_token: payload.access_token,
           refresh_token: payload.refresh_token,
@@ -90,8 +88,8 @@ export function StateContextProvider({
         });
       }
 
+      setAccessToken(payload.access_token);
       setTokenCookie(tokenCookie);
-      // fix this being null for some reason
       await store.set("token", tokenCookie);
 
       if (payload.session.avatar) {
@@ -140,7 +138,9 @@ export function StateContextProvider({
   }, []);
 
   return (
-    <StateContext.Provider value={{ session, sessionCookie, removeSession }}>
+    <StateContext.Provider
+      value={{ session, sessionCookie, access_token, removeSession }}
+    >
       {children}
     </StateContext.Provider>
   );

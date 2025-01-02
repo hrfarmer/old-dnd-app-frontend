@@ -54,8 +54,8 @@ export default function Navbar({ children }: { children: React.ReactNode }) {
                 <div className="flex items-center gap-4">
                   <button
                     className="bg-red-500 px-4 py-1.5 rounded-md text-white hover:cursor-pointer"
-                    onClick={() => {
-                      localStorage.removeItem("token");
+                    onClick={async () => {
+                      await state.removeSession(state.access_token);
                       invoke("exit_app");
                     }}
                   >
