@@ -52,7 +52,8 @@ export default function LoginPage({ children }: { children: React.ReactNode }) {
                 className="w-24 h-24 rounded-full"
               />
               <p className="font-bold text-xl">
-                {state.sessionCookie[t.access_token].username}
+                {state.sessionCookie[t.access_token].global_name ??
+                  state.sessionCookie[t.access_token].username}
               </p>
             </button>
           ))}
