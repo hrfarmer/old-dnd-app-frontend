@@ -1,4 +1,4 @@
-# tauri is shit dont use it
+# tauri is bald
 
 # Tauri + React + Typescript
 
