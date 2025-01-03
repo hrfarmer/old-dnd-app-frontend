@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export type DndCampaign = {
   id: number;
   user_id: number;
@@ -35,13 +37,12 @@ export function err<E>(error: E): Result<any, E> {
 export async function getCampaigns(
   access_token: string,
 ): Promise<Result<DndCampaign[], { error: string }>> {
-  const resp = await fetch("http://127.0.0.1:8080/api/get/campaigns/", {
-    headers: { Authorization: "Bearer " + access_token },
-  });
-
-  if (resp.ok) {
-    return ok((await resp.json()) as DndCampaign[]);
-  } else {
+  try {
+    const resp = await axios.get("http://127.0.0.1:8080/api/get/campaigns/", {
+      headers: { Authorization: "Bearer " + access_token },
+    });
+    return ok((await resp.data) as DndCampaign[]);
+  } catch {
     return err({ error: "Failed to fetch campaigns" });
   }
 }
